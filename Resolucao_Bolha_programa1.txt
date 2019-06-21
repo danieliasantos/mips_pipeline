@@ -5,9 +5,14 @@ NOP
 sw $t0 1200($t1)
 lw $s0 1500($t0)
 sub $s3 $s2 $t0
+NOP
+NOP
 sw $s5 5000($s0)
 lw $s4 1000($s3)
 mult $t2 $s4 $s3
 NOP
 NOP
 sw $s6 200($t2)
+NOP
+NOP
+sw $s4 201($s6)

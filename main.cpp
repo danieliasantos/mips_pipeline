@@ -97,10 +97,10 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
         splitString(linha0, splitLinha0); //faz o split na linha
         if(splitLinha0[0].compare("Erro.") != 0){ //verifica se a instrucao contem erro: == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
             if(mapInstr.at(splitLinha0[0]).compare("RW") == 0){ // == 0: tipo da instrucao eh RW
-                if(i + 1 < listaArquivo.size()){ //verifica se existe uma proxima linha
-                    string linha1 = listaArquivo[i + 1]; //pega a proxima linha
-                    vector<string> splitLinha1; //vector que recebera o split da proxima linha
-                    splitString(linha1, splitLinha1); //executa o split na proxima linha
+                if(i + 1 < listaArquivo.size()){ //verifica se existe uma segunda linha
+                    vector<string> splitLinha1; //vector que recebera o split da segunda linha
+                    string linha1 = listaArquivo[i + 1]; //pega a segunda linha
+                    splitString(linha1, splitLinha1); //executa o split na segunda linha
                     if(splitLinha1[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
                         if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //verifica se a proxima linha eh do tipo R
                             for(int k = 1; k < splitLinha1.size(); k++){ //testar todos os registradores da instrucao da proxima linha
@@ -108,16 +108,34 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
                                 if (splitLinha0[1].compare(splitLinha1[k].substr(pos, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
                                     listaBolha.push_back("NOP"); //insere uma bolha
                                     listaBolha.push_back("NOP"); //insere uma bolha
+                                    listaBolha.push_back(linha1);
+                                    ++i;
                                 }
                             }
-
+                            if(i + 1 < listaArquivo.size()){ //verifica se existe uma terceira linha
+                                string linha2 = listaArquivo[i + 1]; //pega a terceira linha
+                                vector<string> splitLinha2; //vector que recebera o split da terceira linha
+                                splitString(linha2, splitLinha2); //executa o split na terceira linha
+                                if(splitLinha2[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+                                    if(mapInstr.at(splitLinha2[0]).compare("R") == 0){ //verifica se a terceira linha eh do tipo R
+                                        for(int j = 1; j < splitLinha1.size(); j++){ //testar todos os registradores da instrucao da terceira linha
+                                            size_t pos2 = splitLinha1[j].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
+                                            if (splitLinha1[1].compare(splitLinha2[j].substr(pos2, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
+                                                listaBolha.push_back("NOP"); //insere uma bolha
+                                                listaBolha.push_back("NOP"); //insere uma bolha
+                                            }
+                                        }
+                                    }
+                                }
+                                splitLinha2.clear(); //limpa o vetor de split da terceira linha
+                            }
                         }
                     }
-                    splitLinha1.clear(); //limpa o vetor de split da linha 1
+                    splitLinha1.clear(); //limpa o vetor de split da segunda linha
                 }
             }
         }
-        splitLinha0.clear(); //limpa o vetor de split da linha 0
+        splitLinha0.clear(); //limpa o vetor de split da primeira linha
     }
 }
 
