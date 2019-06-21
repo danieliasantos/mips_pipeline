@@ -21,20 +21,24 @@
 
 using namespace std;
 
+/*verifica se ha espaco duplicado*/
+bool espacoDuplo(char lhs, char rhs) {
+     return (lhs == rhs) && (lhs == ' ');
+}
+
 /*
-    Funcao para remocao de espacos duplicados na instrucao lida do arquivo
+    Funcoes para remocao de espacos duplicados na instrucao lida do arquivo
 */
-void removeEspacoDuplo(const string &input, string &output)
+void removeEspacoDuplo(string &str)
 {
-    output.clear();  // unless you want to add at the end of existing sring...
-    unique_copy (input.begin(), input.end(), back_insert_iterator<string>(output), [](char a,char b){ return isspace(a) && isspace(b);});
+    std::string::iterator new_end = std::unique(str.begin(), str.end(), espacoDuplo);
+    str.erase(new_end, str.end());
 }
 
 /*
     Funcao que verifica a estrutura da instrucao lida do arquivo, por meio de regencia. retorna true se encontrar ocorrencia da regencia na instrucao
 */
 bool regexOk(string &str){
-    // regex original {"[a-z]{2,4}[\s](([\$][a|f|g|k|r|v|s|t][a|t|p|\d]\,\s[\d]*\([\$][(a|f|g|k|r|v|s|t)][a|t|p|[\d]\)|(\$szero\,\s[\d]*\([\$][(a|f|g|k|r|v|s|t)][a|t|p|[\d]\)|(-?[\d]*\,\s[\d]*\([\$][(a|f|g|k|r|v|s|t)][a|t|p|[\d]\))))|([\$][a|f|g|k|r|v|s|t][a|t|p|\d]\,\s|(\$szero\,\s|(-?[\d]*\,\s)))([\$][a|f|g|k|r|v|s|t][a|t|p|\d]\,\s|(\$szero\,\s|(-?[\d]*\,\s)))([\$][a|f|g|k|r|v|s|t][a|t|p|\d]|(\$szero|(-?[\d]*))))"}
     regex express("[a-zA-Z]{1,5}[\\s]+(([\\$][a|f|g|k|r|v|s|t][a|t|p|\\d]\\,\\s+[\\d]*\\([\\$][(a|f|g|k|r|v|s|t)][a|t|p|[\\d]\\)|(\\$szero\\,\\s+[\\d]*\\([\\$][(a|f|g|k|r|v|s|t)][a|t|p|[\\d]\\)|(-?[\\d]*\\,\\s+[\\d]*\\([\\$][(a|f|g|k|r|v|s|t)][a|t|p|[\\d]\\))))|([\\$][a|f|g|k|r|v|s|t][a|t|p|\\d]\\,\\s+|(\\$szero\\,\\s|(-?[\\d]*\\,\\s+)))([\\$][a|f|g|k|r|v|s|t][a|t|p|\\d]\\,\\s+|(\\$szero\\,\\s+|(-?[\\d]*\\,\\s+)))([\\$][a|f|g|k|r|v|s|t][a|t|p|\\d]|(\\$szero|(-?[\\d]*))))");
     return regex_search(str, express);
 }
@@ -62,9 +66,7 @@ void lerArquivo(string nome, vector<string> &linhas){
                 //substituir virgula por espaco
                 replace(linha.begin(), linha.end(), ',', ' ');
                 //remover espacos duplicados
-                //string::iterator new_end = unique(linha.begin(), linha.end(), BothAreSpaces);
-                //linha.erase(new_end, linha.end());
-                removeEspacoDuplo(linha, linha);
+                removeEspacoDuplo(linha);
                 //insere linha no vetor
                 linhas.push_back(linha);
             } else {
@@ -110,8 +112,7 @@ struct Instrucao{
 void splitString(string &text, vector<string> &v){
     std::istringstream iss(text);
     std::vector<std::string> results(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>());
-    int x = results.size();
-    cout << "Tamanho: " << x << "Primeira posicao: " << results[0] << endl;
+    v = results;
 }
 /*
     - funcao de resolucao de conflito por bolha: pega a linha, verifica o tipo de instrucao, quanto a manipulacao de registrador,
@@ -119,18 +120,17 @@ void splitString(string &text, vector<string> &v){
     - popula o vector listaBolha com as instrucoes e bolhas inseridas
 */
 void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string, Instrucao> &mapInstr){
+    //vector que recebera as partes da linha
+    vector<string> splitLinha0;
     //percorrer todas as linhas do vector listaArquivo
     for(int i = 0; i < listaArquivo.size(); i++){
         //pegar a primeira linha do vetor listaArquivo
         string linha0 = listaArquivo[i];
         //insere primeira linha na lista de instrucoes com bolha
-        listaBolha.push_back(linha0); //insere primeira instrucao
-        //vector que recebera as partes da linha
-        vector<string> splitLinha0;
+        listaBolha.push_back(linha0);
         //faz o split na linha
         splitString(linha0, splitLinha0);
         //verifica se a instrucao contem erro
-/*
         if(splitLinha0[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
             string t0 = mapInstr.at(splitLinha0[0]).tipo(); //tipo da instrucao
             if(t0.compare("RW") == 0){ // == 0: tipo da instrucao eh RW
@@ -152,15 +152,14 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
                                     listaBolha.push_back("NOP"); //insere uma bolha
                                 }
                             }
+                            i++;
                         }
                     }
                     listaBolha.push_back(linha1); //insere proxima instrucao
                     splitLinha1.clear(); //limpa o vetor de split da linha 1
-                    i++;
                 }
             }
         }
-        */
         splitLinha0.clear();
     }
 }
@@ -302,6 +301,8 @@ int main(int argc, char *argv[]){
     //arquivo txt de instrucoes
     string nomeArquivo = "programa1.txt";
 
+    cout << "Execucao iniciada. Programa MIPS lido: " << nomeArquivo << endl << "Processando... " << endl;
+
     //vector com linhas do arquivo
     vector<string> listaArquivo;
 
@@ -312,16 +313,13 @@ int main(int argc, char *argv[]){
     vector<string> listaBolha;
 
     //metodo de resolucao de conflitos usando a estrategia da bolha
-    //bolha(listaArquivo, listaBolha, mapInstr);
+    bolha(listaArquivo, listaBolha, mapInstr);
 
-    //nomeArquivo = "Resolucao_Bolha_" + nomeArquivo;
-    //gravarArquivo(nomeArquivo, listaBolha);
+    nomeArquivo = "Resolucao_Bolha_" + nomeArquivo;
+    gravarArquivo(nomeArquivo, listaBolha);
 
-    string texto = "Texto para split.";
+    cout << "Concluido! Os binarios foram gravados no arquivo: " << nomeArquivo << endl;
 
-    splitString(texto, listaBolha);
-
-    cout << "Concluido! Os binarios foram gravados no arquivo " << endl;
     //limpa memoria
     listaArquivo.clear();
     listaBolha.clear();

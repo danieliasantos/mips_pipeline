@@ -1,0 +1,15 @@
+# depslib dependency file v1.0
+1561076279 source:/home/daniel/Codigos/codeblocks/mips_pipeline/main.cpp
+	<iostream>
+	<stdlib.h>
+	<sstream>
+	<string>
+	<bitset>
+	<fstream>
+	<stdexcept>
+	<vector>
+	<map>
+	<bits/stdc++.h>
+	<functional>
+	<utility>
+
