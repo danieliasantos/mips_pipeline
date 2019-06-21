@@ -1,11 +1,10 @@
 /*
     IFMG Sabara - Arquitetura de Computadores
-    Gerador de binarios MIPS
+    Resolucao de conflitos em Pipelines MIPS, utilizando bolha, adiantamento com bolha e reordenamento
     Alunos:
         Daniel Elias
         Jonathan Félix
 */
-
 #include <iostream>
 #include <stdlib.h>
 #include <sstream>
@@ -58,21 +57,17 @@ void lerArquivo(string nome, vector<string> &linhas){
     arquivo.open(nome);
     try{
         while(getline(arquivo, linha)){
-            /* um metodo para verificar e corrigir a linha. caso nao de certo, retorna linha com o texto "erro". */
-            //verifica regex e insere resultado ou erro no vector
-            if (regexOk(linha)){
-                //transforma string toda em minusculo
-                transform(linha.begin(), linha.end(), linha.begin(), ::tolower);
-                //substituir virgula por espaco
-                replace(linha.begin(), linha.end(), ',', ' ');
-                //remover espacos duplicados
-                removeEspacoDuplo(linha);
-                //insere linha no vetor
-                linhas.push_back(linha);
-            } else {
-                linhas.push_back("Erro. Instrucao nao reconhecida.");
+            int chr = (int) linha.at(0); //pega o primeiro caractere para testar se eh de nova linha ou de retorno
+            if (chr != 10 && chr != 13){ //ignorar se linha tiver soh caractere de retorno
+                if (regexOk(linha)){ //verifica regex e insere resultado ou erro no vector
+                    transform(linha.begin(), linha.end(), linha.begin(), ::tolower); //transforma string toda em minusculo
+                    replace(linha.begin(), linha.end(), ',', ' '); //substituir virgula por espaco
+                    removeEspacoDuplo(linha); //remover espacos duplicados
+                    linhas.push_back(linha); //insere linha no vetor
+                } else {
+                    linhas.push_back("Erro. Instrucao nao reconhecida.");
+                }
             }
-            //regexOk(linha) ? (linhas.push_back(linha)) : (linhas.push_back("Erro. Instrucao nao reconhecida."));
         }
     } catch (exception& erro) {
         cout << "Erro no processamento do arquivo: " << erro.what() << endl;
@@ -80,87 +75,49 @@ void lerArquivo(string nome, vector<string> &linhas){
 };
 
 /*
-    Structs que guardam o tipo das instrucoes quanto as operacoes com registradores:
-        - R: instrucoes que leem regisradores
-        - RW: instrucoes que leem e gravam em registradores
-    Metodo ini:
-        - recebe o tipo de instrucao
-    Metodo tipo:
-        - retorna o tipo da instrucao
-*/
-struct Instrucao{
-
-    string atributo; //permite a indexacao da struct no map
-
-    void ini(string a){
-        atributo = a;
-    }
-
-    string tipo(){
-        return atributo;
-    }
-
-    bool operator<(const Instrucao &other) const { //indexacao da struct no map
-        return (atributo < other.atributo);
-    }
-};
-
-/*
     funcao que faz split em uma string, com base em espacos, e popula um vector de string
 */
-
 void splitString(string &text, vector<string> &v){
     std::istringstream iss(text);
     std::vector<std::string> results(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>());
     v = results;
+    results.clear();
+    iss.clear();
 }
 /*
     - funcao de resolucao de conflito por bolha: pega a linha, verifica o tipo de instrucao, quanto a manipulacao de registrador,
     verifica as duas linhas seguintes e insere a bolha, se necessario
     - popula o vector listaBolha com as instrucoes e bolhas inseridas
 */
-void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string, Instrucao> &mapInstr){
-    //vector que recebera as partes da linha
-    vector<string> splitLinha0;
-    //percorrer todas as linhas do vector listaArquivo
-    for(int i = 0; i < listaArquivo.size(); i++){
-        //pegar a primeira linha do vetor listaArquivo
-        string linha0 = listaArquivo[i];
-        //insere primeira linha na lista de instrucoes com bolha
-        listaBolha.push_back(linha0);
-        //faz o split na linha
-        splitString(linha0, splitLinha0);
-        //verifica se a instrucao contem erro
-        if(splitLinha0[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
-            string t0 = mapInstr.at(splitLinha0[0]).tipo(); //tipo da instrucao
-            if(t0.compare("RW") == 0){ // == 0: tipo da instrucao eh RW
+void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string, string> &mapInstr){
+    vector<string> splitLinha0; //vector que recebera as partes da linha
+    for(int i = 0; i < listaArquivo.size(); i++){ //percorrer todas as linhas do vector listaArquivo
+        string linha0 = listaArquivo[i]; //pegar a primeira linha do vetor listaArquivo
+        listaBolha.push_back(linha0); //insere primeira linha na lista de instrucoes com bolha
+        splitString(linha0, splitLinha0); //faz o split na linha
+        if(splitLinha0[0].compare("Erro.") != 0){ //verifica se a instrucao contem erro: == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+            if(mapInstr.at(splitLinha0[0]).compare("RW") == 0){ // == 0: tipo da instrucao eh RW
                 if(i + 1 < listaArquivo.size()){ //verifica se existe uma proxima linha
-                    //primeira linha apos
                     string linha1 = listaArquivo[i + 1]; //pega a proxima linha
                     vector<string> splitLinha1; //vector que recebera o split da proxima linha
                     splitString(linha1, splitLinha1); //executa o split na proxima linha
                     if(splitLinha1[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
-                        string t1 = mapInstr.at(splitLinha1[0]).tipo();
-                        if(t1.compare("R") == 0){ //verifica se a proxima linha eh do tipo R
-                            //testar todos os registradores da instrucao da proxima linha
-                            for(int k = 1; k < splitLinha1.size(); k++){
+                        if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //verifica se a proxima linha eh do tipo R
+                            for(int k = 1; k < splitLinha1.size(); k++){ //testar todos os registradores da instrucao da proxima linha
                                 size_t pos = splitLinha1[k].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
-                                string reg = splitLinha1[k].substr(pos, 3); //identifica o registrador
-                                if (splitLinha0[1].compare(reg) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
-                                    //inserir bolhas
+                                if (splitLinha0[1].compare(splitLinha1[k].substr(pos, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
                                     listaBolha.push_back("NOP"); //insere uma bolha
                                     listaBolha.push_back("NOP"); //insere uma bolha
                                 }
                             }
-                            i++;
+
                         }
                     }
-                    listaBolha.push_back(linha1); //insere proxima instrucao
                     splitLinha1.clear(); //limpa o vetor de split da linha 1
                 }
             }
         }
-        splitLinha0.clear();
+        splitLinha0.clear(); //limpa o vetor de split da linha 0
     }
 }
 
@@ -174,154 +131,74 @@ void gravarArquivo(string nome, vector<string> &listaInstrucoes){
 }
 
 int main(int argc, char *argv[]){
+    map<string, string> mapInstr; // Mapeamento das instrucoes para pesquisa dos tipos R e RW quanto a manipulacao de registradores
+    mapInstr.insert({"j", "R"});
+    mapInstr.insert({"jal", "R"});
+    mapInstr.insert({"jr", "R"});
+    mapInstr.insert({"bltz", "R"});
+    mapInstr.insert({"blez", "R"});
+    mapInstr.insert({"bgtz", "R"});
+    mapInstr.insert({"bgez", "R"});
+    mapInstr.insert({"bltzal", "R"});
+    mapInstr.insert({"bgezal", "R"});
+    mapInstr.insert({"beq", "R"});
+    mapInstr.insert({"bne", "R"});
+    mapInstr.insert({"sb", "R"});
+    mapInstr.insert({"sh", "R"});
+    mapInstr.insert({"swl", "R"});
+    mapInstr.insert({"sw", "R"});
+    mapInstr.insert({"swr", "R"});
+    mapInstr.insert({"addi", "RW"});
+    mapInstr.insert({"addiu", "RW"});
+    mapInstr.insert({"slti", "RW"});
+    mapInstr.insert({"sltiu", "RW"});
+    mapInstr.insert({"andi", "RW"});
+    mapInstr.insert({"ori", "RW"});
+    mapInstr.insert({"xori", "RW"});
+    mapInstr.insert({"sllv", "RW"});
+    mapInstr.insert({"srlv", "RW"});
+    mapInstr.insert({"srav", "RW"});
+    mapInstr.insert({"add", "RW"});
+    mapInstr.insert({"addu", "RW"});
+    mapInstr.insert({"sub", "RW"});
+    mapInstr.insert({"subu", "RW"});
+    mapInstr.insert({"and", "RW"});
+    mapInstr.insert({"or", "RW"});
+    mapInstr.insert({"xor", "RW"});
+    mapInstr.insert({"nor", "RW"});
+    mapInstr.insert({"slt", "RW"});
+    mapInstr.insert({"sltu", "RW"});
+    mapInstr.insert({"mthi", "RW"});
+    mapInstr.insert({"mtlo", "RW"});
+    mapInstr.insert({"mult", "RW"});
+    mapInstr.insert({"multu", "RW"});
+    mapInstr.insert({"div", "RW"});
+    mapInstr.insert({"divu", "RW"});
+    mapInstr.insert({"jalr", "RW"});
+    mapInstr.insert({"mfhi", "RW"});
+    mapInstr.insert({"mflo", "RW"});
+    mapInstr.insert({"sll", "RW"});
+    mapInstr.insert({"srl", "RW"});
+    mapInstr.insert({"sra", "RW"});
+    mapInstr.insert({"lui", "RW"});
+    mapInstr.insert({"lb", "RW"});
+    mapInstr.insert({"lh", "RW"});
+    mapInstr.insert({"lwl", "RW"});
+    mapInstr.insert({"lw", "RW"});
+    mapInstr.insert({"lbu", "RW"});
+    mapInstr.insert({"lhu", "RW"});
+    mapInstr.insert({"lwr", "RW"});
 
-    /*
-        Instanciacao das structs das instrucoes com o respectivo tipo
-    */
-    Instrucao LUI, BLTZ, BLEZ, BGTZ, BGEZ, BLTZAL, BGEZAL, BEQ, BNE, ADDI, ADDIU, SLTI, SLTIU, ANDI, ORI, XORI, LB, LH, LWL, LW, LBU, LHU, LWR, SB, SH, SWL, SW, SWR, J, JAL, SLLV, SRLV, SRAV, ADD, ADDU, SUB, SUBU, AND, OR, XOR, NOR, SLT, SLTU, JR, MTHI, MTLO, MULT, MULTU, DIV, DIVU, JALR, MFHI, MFLO, SLL, SRL, SRA;
-
-    J.ini("R");
-    JAL.ini("R");
-    JR.ini("R");
-    BLTZ.ini("R");
-    BLEZ.ini("R");
-    BGTZ.ini("R");
-    BGEZ.ini("R");
-    BLTZAL.ini("R");
-    BGEZAL.ini("R");
-    BEQ.ini("R");
-    BNE.ini("R");
-    SB.ini("R");
-    SH.ini("R");
-    SWL.ini("R");
-    SW.ini("R");
-    SWR.ini("R");
-    ADDI.ini("RW");
-    ADDIU.ini("RW");
-    SLTI.ini("RW");
-    SLTIU.ini("RW");
-    ANDI.ini("RW");
-    ORI.ini("RW");
-    XORI.ini("RW");
-    SLLV.ini("RW");
-    SRLV.ini("RW");
-    SRAV.ini("RW");
-    ADD.ini("RW");
-    ADDU.ini("RW");
-    SUB.ini("RW");
-    SUBU.ini("RW");
-    AND.ini("RW");
-    OR.ini("RW");
-    XOR.ini("RW");
-    NOR.ini("RW");
-    SLT.ini("RW");
-    SLTU.ini("RW");
-    MTHI.ini("RW");
-    MTLO.ini("RW");
-    MULT.ini("RW");
-    MULTU.ini("RW");
-    DIV.ini("RW");
-    DIVU.ini("RW");
-    JALR.ini("RW");
-    MFHI.ini("RW");
-    MFLO.ini("RW");
-    SLL.ini("RW");
-    SRL.ini("RW");
-    SRA.ini("RW");
-    LUI.ini("RW");
-    LB.ini("RW");
-    LH.ini("RW");
-    LWL.ini("RW");
-    LW.ini("RW");
-    LBU.ini("RW");
-    LHU.ini("RW");
-    LWR.ini("RW");
-
-    /*
-        Mapeamento das instrucoes para pesquisa
-    */
-    map<string, Instrucao> mapInstr;
-    mapInstr.insert({"lui", LUI});
-    mapInstr.insert({"bltz", BLTZ});
-    mapInstr.insert({"blez", BLEZ});
-    mapInstr.insert({"bgtz", BGTZ});
-    mapInstr.insert({"bgez", BGEZ});
-    mapInstr.insert({"bltzal", BLTZAL});
-    mapInstr.insert({"bgezal", BGEZAL});
-    mapInstr.insert({"beq", BEQ});
-    mapInstr.insert({"bne", BNE});
-    mapInstr.insert({"addi", ADDI});
-    mapInstr.insert({"addiu", ADDIU});
-    mapInstr.insert({"slti", SLTI});
-    mapInstr.insert({"sltiu", SLTIU});
-    mapInstr.insert({"andi", ANDI});
-    mapInstr.insert({"ori", ORI});
-    mapInstr.insert({"xori", XORI});
-    mapInstr.insert({"lb", LB});
-    mapInstr.insert({"lh", LH});
-    mapInstr.insert({"lwl", LWL});
-    mapInstr.insert({"lw", LW});
-    mapInstr.insert({"lbu", LBU});
-    mapInstr.insert({"lhu", LHU});
-    mapInstr.insert({"lwr", LWR});
-    mapInstr.insert({"sb", SB});
-    mapInstr.insert({"sh", SH});
-    mapInstr.insert({"swl", SWL});
-    mapInstr.insert({"sw", SW});
-    mapInstr.insert({"swr", SWR});
-    mapInstr.insert({"j", J});
-    mapInstr.insert({"jal", JAL});
-    mapInstr.insert({"sllv", SLLV});
-    mapInstr.insert({"srlv", SRLV});
-    mapInstr.insert({"srav", SRAV});
-    mapInstr.insert({"add", ADD});
-    mapInstr.insert({"addu", ADDU});
-    mapInstr.insert({"sub", SUB});
-    mapInstr.insert({"subu", SUBU});
-    mapInstr.insert({"and", AND});
-    mapInstr.insert({"or", OR});
-    mapInstr.insert({"xor", XOR});
-    mapInstr.insert({"nor", NOR});
-    mapInstr.insert({"slt", SLT});
-    mapInstr.insert({"sltu", SLTU});
-    mapInstr.insert({"jr", JR});
-    mapInstr.insert({"mthi", MTHI});
-    mapInstr.insert({"mtlo", MTLO});
-    mapInstr.insert({"mult", MULT});
-    mapInstr.insert({"multu", MULTU});
-    mapInstr.insert({"div", DIV});
-    mapInstr.insert({"divu", DIVU});
-    mapInstr.insert({"jalr", JALR});
-    mapInstr.insert({"mfhi", MFHI});
-    mapInstr.insert({"mflo", MFLO});
-    mapInstr.insert({"sll", SLL});
-    mapInstr.insert({"srl", SRL});
-    mapInstr.insert({"sra", SRA});
-
-    //arquivo txt de instrucoes
-    string nomeArquivo = "programa1.txt";
-
+    string nomeArquivo = "programa1.txt"; //arquivo txt de instrucoes
     cout << "Execucao iniciada. Programa MIPS lido: " << nomeArquivo << endl << "Processando... " << endl;
-
-    //vector com linhas do arquivo
-    vector<string> listaArquivo;
-
-    //ler o arquivo e popular o vetor de strings com as linhas do arquivo
-    lerArquivo(nomeArquivo, listaArquivo);
-
-    //vector com as linhas do arquivo separadas em structs do tipo Instrucao
-    vector<string> listaBolha;
-
-    //metodo de resolucao de conflitos usando a estrategia da bolha
-    bolha(listaArquivo, listaBolha, mapInstr);
-
+    vector<string> listaArquivo; //vector com linhas do arquivo
+    lerArquivo(nomeArquivo, listaArquivo); //ler o arquivo e popular o vetor de strings com as linhas do arquivo
+    vector<string> listaBolha; //vector com as linhas do arquivo separadas em structs do tipo Instrucao
+    bolha(listaArquivo, listaBolha, mapInstr); //metodo de resolucao de conflitos usando a estrategia da bolha
     nomeArquivo = "Resolucao_Bolha_" + nomeArquivo;
     gravarArquivo(nomeArquivo, listaBolha);
-
     cout << "Concluido! Os binarios foram gravados no arquivo: " << nomeArquivo << endl;
-
-    //limpa memoria
-    listaArquivo.clear();
+    listaArquivo.clear();     //limpa memoria
     listaBolha.clear();
     mapInstr.clear();
     return 0;
