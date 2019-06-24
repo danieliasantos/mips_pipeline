@@ -128,19 +128,23 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
         splitLinha0.clear(); //limpa o vetor de split da primeira linha
     }
 }
-
+/*
+    - funcao de resolucao de conflito por aditamento com bolha: pega a linha, verifica se eh bolha. verifica a quarta seguinte e testa se pode adiantar.
+    se for o caso, adianta e verifica a proxima.verifica as duas linhas seguintes e insere a bolha, se necessario
+    - popula o vector listaBolha com as instrucoes e bolhas inseridas
+*/
 void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBolha, map<string, string> &mapInstr){
     vector<string> splitLinha; //vector que recebera o split da linha 0
     vector<int> saltarLinhas; //vector que recebera as linhas que devem ser saltadas no vector listaBolha, pois jah foram movidas
     for (int i = 0; i < listaBolha.size(); i++){ //percorrer o vector da listaBolha verificando as bolhas
-        bool pulaLinha = false;
-        for (int k = 0; k < saltarLinhas.size(); k++){
-            if(i == saltarLinhas[k]){
-                pulaLinha = true;
-                break;
+        bool pulaLinha = false; //verifica e a linha ja foi avaliada
+        for (int k = 0; k < saltarLinhas.size(); k++){ //pesquisa no vector de linhas avaliadas, se a atual jah foi
+            if(i == saltarLinhas[k]){ //se sim, pula
+                pulaLinha = true; //pula
+                break; //encerra a pesquisa
             }
         }
-        if(!pulaLinha){
+        if(!pulaLinha){ //pula a linha se ela jah foi avaliada
             listaAdiantBolha.push_back(listaBolha[i]); //insere a linha atual no vector de adiantamentoBolha
         }
         if(listaBolha[i + 1].compare("NOP") == 0){ //verifica se a proxima instrucao eh NOP
@@ -150,12 +154,12 @@ void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBo
                     listaAdiantBolha.push_back(listaBolha[j]); // insere adiantamento da instrucao
                     saltarLinhas.push_back(j); //linha nao deve ser inserida novamente, entao deve ser saltada
                     i++; //proxima linha jah testada e inserida, saltar tambem
-                    splitLinha.clear();
-                    splitString(listaBolha[j + 1], splitLinha);
-                    if(mapInstr.at(splitLinha[0]).compare("RW") == 0){
-                        listaAdiantBolha.push_back(listaBolha[j + 1]);
-                        saltarLinhas.push_back(j + 1);
-                        i++;
+                    splitLinha.clear(); //limpa o vector de split da linha para testar a linha seguinte
+                    splitString(listaBolha[j + 1], splitLinha); //split da linha seguinte
+                    if(mapInstr.at(splitLinha[0]).compare("RW") == 0){ //testa a linha seguinte
+                        listaAdiantBolha.push_back(listaBolha[j + 1]); //insere a linha seguinte
+                        saltarLinhas.push_back(j + 1); //linha nao deve ser inserida novamente, entao deve ser saltada
+                        i++; //incrementa a posicao de leitura da listaBolha
                     }
                     break;
                 }
@@ -164,6 +168,33 @@ void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBo
     }
     splitLinha.clear();
     saltarLinhas.clear();
+}
+
+void reordenamento(vector<string> &listaArquivo, vector<string> &listaReordenamento, map<string, string> &mapInstr){
+    vector<string> splitLinha0;
+    vector<string> splitLinha1;
+    vector<string> splitLinha2;
+    vector<int> saltarLinhas;
+    for (int i = 0; i < listaArquivo.size(); i++){
+        splitString(listaArquivo[i], splitLinha0);
+        listaReordenamento.push_back(listaArquivo[i]);
+        if (mapInstr.at(splitLinha0[0]).compare("RW") == 0){
+            splitString(listaArquivo[i + 1], splitLinha1);
+            if(mapInstr.at(splitLinha1[0]).compare("R") == 0){
+                int cont = 0;
+                int j = i + 2;
+                while( j < listaArquivo.size() && cont < 2){
+                    splitString(listaArquivo[j], splitLinha2);
+                    if(mapInstr.at(splitLinha2[0]).compare("RW") == 0){
+                        listaReordenamento.push_back(listaArquivo[j]);
+                        cont++;
+                    }
+                    j++;
+                    splitLinha2.clear();
+                }
+            }
+        }
+    }
 }
 
 void gravarArquivo(string nome, vector<string> &listaInstrucoes){
@@ -247,8 +278,13 @@ int main(int argc, char *argv[]){
     adiantamentoBolha(listaBolha, listaAdiantBolha, mapInstr);
     gravarArquivo("Resolucao_Aditantamento_Bolha_" + nomeArquivo, listaAdiantBolha);
     cout << "Resolucao de conflito com Adiantamento-Bolha concluido. Saida gravada em arquivo." << endl;
+    vector<string> listaReordenamento;
+    reordenamento(listaArquivo, listaReordenamento, mapInstr);
+    gravarArquivo("Resolucao_Reordenamento_" + nomeArquivo, listaReordenamento);
+    cout << "Resolucao de conflito com Reordenamento concluido. Saida gravada em arquivo." << endl;
     listaArquivo.clear(); //limpa memoria
     listaBolha.clear(); //limpa memoria
+    listaReordenamento.clear(); //limpa memoria
     mapInstr.clear(); //limpa memoria
     return 0;
 }
