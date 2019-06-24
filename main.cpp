@@ -103,28 +103,18 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
                     splitString(linha1, splitLinha1); //executa o split na segunda linha
                     if(splitLinha1[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
                         if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //verifica se a proxima linha eh do tipo R
-                            for(int k = 1; k < splitLinha1.size(); k++){ //testar todos os registradores da instrucao da proxima linha
-                                size_t pos = splitLinha1[k].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
-                                if (splitLinha0[1].compare(splitLinha1[k].substr(pos, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
-                                    listaBolha.push_back("NOP"); //insere uma bolha
-                                    listaBolha.push_back("NOP"); //insere uma bolha
-                                    listaBolha.push_back(linha1);
-                                    ++i;
-                                }
-                            }
+                            listaBolha.push_back("NOP"); //insere uma bolha
+                            listaBolha.push_back("NOP"); //insere uma bolha
+                            listaBolha.push_back(linha1);
+                            ++i;
                             if(i + 1 < listaArquivo.size()){ //verifica se existe uma terceira linha
                                 string linha2 = listaArquivo[i + 1]; //pega a terceira linha
                                 vector<string> splitLinha2; //vector que recebera o split da terceira linha
                                 splitString(linha2, splitLinha2); //executa o split na terceira linha
                                 if(splitLinha2[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
                                     if(mapInstr.at(splitLinha2[0]).compare("R") == 0){ //verifica se a terceira linha eh do tipo R
-                                        for(int j = 1; j < splitLinha1.size(); j++){ //testar todos os registradores da instrucao da terceira linha
-                                            size_t pos2 = splitLinha1[j].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
-                                            if (splitLinha1[1].compare(splitLinha2[j].substr(pos2, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
-                                                listaBolha.push_back("NOP"); //insere uma bolha
-                                                listaBolha.push_back("NOP"); //insere uma bolha
-                                            }
-                                        }
+                                        listaBolha.push_back("NOP"); //insere uma bolha
+                                        listaBolha.push_back("NOP"); //insere uma bolha
                                     }
                                 }
                                 splitLinha2.clear(); //limpa o vetor de split da terceira linha
@@ -137,6 +127,43 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
         }
         splitLinha0.clear(); //limpa o vetor de split da primeira linha
     }
+}
+
+void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBolha, map<string, string> &mapInstr){
+    vector<string> splitLinha; //vector que recebera o split da linha 0
+    vector<int> saltarLinhas; //vector que recebera as linhas que devem ser saltadas no vector listaBolha, pois jah foram movidas
+    for (int i = 0; i < listaBolha.size(); i++){ //percorrer o vector da listaBolha verificando as bolhas
+        bool pulaLinha = false;
+        for (int k = 0; k < saltarLinhas.size(); k++){
+            if(i == saltarLinhas[k]){
+                pulaLinha = true;
+                break;
+            }
+        }
+        if(!pulaLinha){
+            listaAdiantBolha.push_back(listaBolha[i]); //insere a linha atual no vector de adiantamentoBolha
+        }
+        if(listaBolha[i + 1].compare("NOP") == 0){ //verifica se a proxima instrucao eh NOP
+            for (int j = i + 4; j < listaBolha.size(); j++){ //loop para testar as proximas linhas e ver se alguma pode ser inserida no lugar do nop
+                splitString(listaBolha[j], splitLinha); //split da proxima linha
+                if(mapInstr.at(splitLinha[0]).compare("RW") == 0){ //teste da instrucao do tipo R
+                    listaAdiantBolha.push_back(listaBolha[j]); // insere adiantamento da instrucao
+                    saltarLinhas.push_back(j); //linha nao deve ser inserida novamente, entao deve ser saltada
+                    i++; //proxima linha jah testada e inserida, saltar tambem
+                    splitLinha.clear();
+                    splitString(listaBolha[j + 1], splitLinha);
+                    if(mapInstr.at(splitLinha[0]).compare("RW") == 0){
+                        listaAdiantBolha.push_back(listaBolha[j + 1]);
+                        saltarLinhas.push_back(j + 1);
+                        i++;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    splitLinha.clear();
+    saltarLinhas.clear();
 }
 
 void gravarArquivo(string nome, vector<string> &listaInstrucoes){
@@ -206,6 +233,7 @@ int main(int argc, char *argv[]){
     mapInstr.insert({"lbu", "RW"});
     mapInstr.insert({"lhu", "RW"});
     mapInstr.insert({"lwr", "RW"});
+    mapInstr.insert({"NOP", "0"});
 
     string nomeArquivo = "programa1.txt"; //arquivo txt de instrucoes
     cout << "Execucao iniciada. Programa MIPS lido: " << nomeArquivo << endl << "Processando... " << endl;
@@ -213,11 +241,115 @@ int main(int argc, char *argv[]){
     lerArquivo(nomeArquivo, listaArquivo); //ler o arquivo e popular o vetor de strings com as linhas do arquivo
     vector<string> listaBolha; //vector com as linhas do arquivo separadas em structs do tipo Instrucao
     bolha(listaArquivo, listaBolha, mapInstr); //metodo de resolucao de conflitos usando a estrategia da bolha
-    nomeArquivo = "Resolucao_Bolha_" + nomeArquivo;
-    gravarArquivo(nomeArquivo, listaBolha);
-    cout << "Concluido! Os binarios foram gravados no arquivo: " << nomeArquivo << endl;
-    listaArquivo.clear();     //limpa memoria
-    listaBolha.clear();
-    mapInstr.clear();
+    gravarArquivo("Resolucao_Bolha_" + nomeArquivo, listaBolha); //gravar resultado no arquivo de saida
+    cout << "Resolucao de conflito com Bolha concluido. Saida gravada em arquivo." << endl;
+    vector<string> listaAdiantBolha;
+    adiantamentoBolha(listaBolha, listaAdiantBolha, mapInstr);
+    gravarArquivo("Resolucao_Aditantamento_Bolha_" + nomeArquivo, listaAdiantBolha);
+    cout << "Resolucao de conflito com Adiantamento-Bolha concluido. Saida gravada em arquivo." << endl;
+    listaArquivo.clear(); //limpa memoria
+    listaBolha.clear(); //limpa memoria
+    mapInstr.clear(); //limpa memoria
     return 0;
 }
+
+/*
+void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string, string> &mapInstr){
+    vector<string> splitLinha0; //vector que recebera as partes da linha
+    for(int i = 0; i < listaArquivo.size(); i++){ //percorrer todas as linhas do vector listaArquivo
+        string linha0 = listaArquivo[i]; //pegar a primeira linha do vetor listaArquivo
+        listaBolha.push_back(linha0); //insere primeira linha na lista de instrucoes com bolha
+        splitString(linha0, splitLinha0); //faz o split na linha
+        if(splitLinha0[0].compare("Erro.") != 0){ //verifica se a instrucao contem erro: == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+            if(mapInstr.at(splitLinha0[0]).compare("RW") == 0){ // == 0: tipo da instrucao eh RW
+                if(i + 1 < listaArquivo.size()){ //verifica se existe uma segunda linha
+                    vector<string> splitLinha1; //vector que recebera o split da segunda linha
+                    string linha1 = listaArquivo[i + 1]; //pega a segunda linha
+                    splitString(linha1, splitLinha1); //executa o split na segunda linha
+                    if(splitLinha1[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+                        if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //verifica se a proxima linha eh do tipo R
+                            for(int k = 1; k < splitLinha1.size(); k++){ //testar todos os registradores da instrucao da proxima linha
+                                size_t pos = splitLinha1[k].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
+                                string txt = splitLinha1[k].substr(pos, 3);
+                                if (splitLinha0[1].compare(splitLinha1[k].substr(pos, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
+                                    listaBolha.push_back("NOP"); //insere uma bolha
+                                    listaBolha.push_back("NOP"); //insere uma bolha
+                                    listaBolha.push_back(linha1);
+                                    ++i;
+                                }
+                            }
+                            if(i + 1 < listaArquivo.size()){ //verifica se existe uma terceira linha
+                                string linha2 = listaArquivo[i + 1]; //pega a terceira linha
+                                vector<string> splitLinha2; //vector que recebera o split da terceira linha
+                                splitString(linha2, splitLinha2); //executa o split na terceira linha
+                                if(splitLinha2[0].compare("Erro.") != 0){ // == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+                                    if(mapInstr.at(splitLinha2[0]).compare("R") == 0){ //verifica se a terceira linha eh do tipo R
+                                        for(int j = 1; j < splitLinha1.size(); j++){ //testar todos os registradores da instrucao da terceira linha
+                                            size_t pos2 = splitLinha1[j].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
+                                            if (splitLinha1[1].compare(splitLinha2[j].substr(pos2, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
+                                                listaBolha.push_back("NOP"); //insere uma bolha
+                                                listaBolha.push_back("NOP"); //insere uma bolha
+                                            }
+                                        }
+                                    }
+                                }
+                                splitLinha2.clear(); //limpa o vetor de split da terceira linha
+                            }
+                        }
+                    }
+                    splitLinha1.clear(); //limpa o vetor de split da segunda linha
+                }
+            }
+        }
+        splitLinha0.clear(); //limpa o vetor de split da primeira linha
+    }
+}
+
+void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBolha, map<string, string> &mapInstr){
+    vector<string> splitLinha0; //vector que recebera o split da linha 0
+    vector<string> splitLinha1; //vector que recebera o split das proximas linhas
+    vector<int> saltarLinhas;
+    bool saltar = false;
+    int contAdiant = 0; //recebe o indice da linha que deve ser testada apos encontrar um nop
+    for (int i = 0; i < listaBolha.size(); i++){ //percorrer o vector da listaBolha verificando as bolhas
+        for(int x = 0; x < saltarLinhas.size(); x++){
+            if (saltarLinhas[x] == i){
+                saltar = true;
+            }
+        }
+        if (!saltar){
+            listaAdiantBolha.push_back(listaBolha[i]); //insere a linha atual no vector de adiantamentoBolha
+            splitString(listaBolha[i], splitLinha0); //split da linha
+            if(splitLinha0[0].compare("Erro.") != 0){ //verifica se a instrucao contem erro: == 0: erro, pois sao iguais. != 0: nao eh erro, pois nao sao iguais
+                if(listaBolha[i + 1].compare("NOP") == 0){ //verifica se a proxima instrucao eh NOP
+                    for (int j = i + contAdiant + 3; j < listaBolha.size(); j++){ //loop para testar as proximas linhas e ver se alguma pode ser inserida no lugar do nop
+                        cout << " - j: " << j << endl;
+                        splitString(listaBolha[j], splitLinha1); //split na proxima linha
+                        if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //teste da instrucao do tipo R
+                            int k = 1; //controle do while, vai da posicao 1 ateh size splitLinha1
+                            bool usaReg = false; //recebe true se a instrucao utiliza o registrador da linha0
+                            while((k < splitLinha1.size()) && !usaReg){ //testar todos os registradores da instrucao da terceira linha
+                                size_t pos = splitLinha1[k].find("$"); //pegar posicao do cifrao, que indica o inicio de uma instrucao
+                                if (splitLinha0[1].compare(splitLinha1[k].substr(pos, 3)) == 0){ //registrador que serah escrito eh utilizado pela instrucao R
+                                    usaReg = true; //registrador eh utilizado
+                                    break;
+                                }
+                                k++; // incremento do controle do while
+                            }
+                            if(!usaReg){ //nenhum registrador da instrucao eh utilizado
+                                listaAdiantBolha.push_back(listaBolha[j]); // insere adiantamento da instrucao
+                                saltarLinhas.push_back(j); //linha nao deve ser inserida novamente, entao deve ser saltada
+                                i++; //proxima linha jah testada e inserida, saltar tambem
+                                contAdiant++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    splitLinha0.clear();
+    splitLinha1.clear();
+    saltarLinhas.clear();
+}
+*/
