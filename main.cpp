@@ -131,7 +131,7 @@ void bolha(vector<string> &listaArquivo, vector<string> &listaBolha, map<string,
 /*
     - funcao de resolucao de conflito por aditamento com bolha: pega a linha, verifica se eh bolha. verifica a quarta seguinte e testa se pode adiantar.
     se for o caso, adianta e verifica a proxima.verifica as duas linhas seguintes e insere a bolha, se necessario
-    - popula o vector listaBolha com as instrucoes e bolhas inseridas
+    - popula o vector listaAdiantBolha com as instrucoes e bolhas inseridas
 */
 void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBolha, map<string, string> &mapInstr){
     vector<string> splitLinha; //vector que recebera o split da linha 0
@@ -169,32 +169,48 @@ void adiantamentoBolha(vector<string> &listaBolha, vector<string> &listaAdiantBo
     splitLinha.clear();
     saltarLinhas.clear();
 }
-
+/*
+    - funcao de resolucao de conflito por reordenamento: pega a linha, verifica se eh RW. se sim, verifica a proxima. Se R, reordena com as RW seguintes.
+    - popula o vector listaReordenamento com as instrucoes e bolhas inseridas
+*/
 void reordenamento(vector<string> &listaArquivo, vector<string> &listaReordenamento, map<string, string> &mapInstr){
-    vector<string> splitLinha0;
-    vector<string> splitLinha1;
-    vector<string> splitLinha2;
-    vector<int> saltarLinhas;
-    for (int i = 0; i < listaArquivo.size(); i++){
-        splitString(listaArquivo[i], splitLinha0);
-        listaReordenamento.push_back(listaArquivo[i]);
-        if (mapInstr.at(splitLinha0[0]).compare("RW") == 0){
-            splitString(listaArquivo[i + 1], splitLinha1);
-            if(mapInstr.at(splitLinha1[0]).compare("R") == 0){
-                int cont = 0;
-                int j = i + 2;
-                while( j < listaArquivo.size() && cont < 2){
-                    splitString(listaArquivo[j], splitLinha2);
-                    if(mapInstr.at(splitLinha2[0]).compare("RW") == 0){
-                        listaReordenamento.push_back(listaArquivo[j]);
-                        cont++;
+    vector<string> splitLinha0; //vector que recebe  a linha atual para verificar se eh RW ou R
+    vector<string> splitLinha1; //vector que recebe a proxima linha e verifica se eh R
+    vector<string> splitLinha2; //vector que recebe a linha seguinte e verifica se eh R
+    vector<int> saltarLinhas; //linhas jah tratadas que devem ser saltadas
+    for (int i = 0; i < listaArquivo.size(); i++){ //percorrer todo o vector listaArquivo
+        bool pulaLinha = false; //verifica e a linha ja foi avaliada
+        for (int k = 0; k < saltarLinhas.size(); k++){ //pesquisa no vector de linhas avaliadas, se a atual jah foi
+            if(i == saltarLinhas[k]){ //se sim, pula
+                pulaLinha = true; //pula
+                break; //encerra a pesquisa
+            }
+        }
+        if(!pulaLinha){ //pula a linha se ela jah foi avaliada
+            listaReordenamento.push_back(listaArquivo[i]); //insere a linha atual no vector de adiantamentoBolha
+        }
+        splitString(listaArquivo[i], splitLinha0); //split da linha atual para verificar se eh RW
+        if (mapInstr.at(splitLinha0[0]).compare("RW") == 0){ //verifica se eh RW
+            splitString(listaArquivo[i + 1], splitLinha1); //verificacao da proxima liha
+            if(mapInstr.at(splitLinha1[0]).compare("R") == 0){ //verifica se eh R
+                int cont = 0; //controle do while, soh deve reordenar duas linhas
+                int j = i + 2; //comecar da terceira linha, a partir da atual
+                while( j < listaArquivo.size() && cont < 2){ //busca por linhas RW
+                    splitString(listaArquivo[j], splitLinha2); //teste das linhas seguintes
+                    if(mapInstr.at(splitLinha2[0]).compare("RW") == 0){ //se for RW, reordena
+                        listaReordenamento.push_back(listaArquivo[j]); //reordenamento
+                        saltarLinhas.push_back(j); //linha reordenada deve ser saltada
+                        cont++; //incremento do controle
                     }
-                    j++;
-                    splitLinha2.clear();
+                    j++; //incremento do controle
+                    splitLinha2.clear(); //limpa memoria
                 }
             }
         }
     }
+    splitLinha0.clear();
+    splitLinha1.clear();
+    splitLinha2.clear();
 }
 
 void gravarArquivo(string nome, vector<string> &listaInstrucoes){
@@ -265,6 +281,7 @@ int main(int argc, char *argv[]){
     mapInstr.insert({"lhu", "RW"});
     mapInstr.insert({"lwr", "RW"});
     mapInstr.insert({"NOP", "0"});
+    mapInstr.insert({"ERRO.", "0"});
 
     string nomeArquivo = "programa1.txt"; //arquivo txt de instrucoes
     cout << "Execucao iniciada. Programa MIPS lido: " << nomeArquivo << endl << "Processando... " << endl;
